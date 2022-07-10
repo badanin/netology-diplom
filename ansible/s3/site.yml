@@ -1,0 +1,64 @@
+---
+- name: Install minio
+  hosts: all
+  tasks:
+    # Подготовка пользователя и директории
+    - name: create minio user
+      ansible.builtin.user:
+        name: minio-user
+        shell: /bin/bash
+    - name: set owner to storage
+      ansible.builtin.file:
+        path: /data
+        state: directory
+        owner: minio-user
+        group: minio-user
+
+    # Проверка наличия minio, чтобы каждый раз долго не качал из инета
+    - name: ckeck minio server
+      ansible.builtin.stat:
+        path: "/usr/local/bin/minio"
+      register: check_minio
+    - name: ckeck minio client
+      ansible.builtin.stat:
+        path: "/usr/local/bin/mcli"
+      register: check_mcli
+
+    # Установка minio
+    - name: install minio server
+      ansible.builtin.apt:
+        deb: https://dl.min.io/server/minio/release/linux-amd64/minio_20220708000523.0.0_amd64.deb
+      when: not check_minio.stat.exists # Проверка, если исполняемый файл существует
+    - name: install minio client
+      ansible.builtin.apt:
+        deb: https://dl.min.io/client/mc/release/linux-amd64/mcli_20220706145436.0.0_amd64.deb
+      when: not check_mcli.stat.exists # Проверка, если исполняемый файл существует
+
+    # Настройка и запуск
+    - name: copy minio config
+      ansible.builtin.template:
+        src: templates/minio.j2
+        dest: /etc/default/minio
+    - name: start minio service
+      ansible.builtin.service:
+        name: minio
+        state: started
+    
+    # Настройка клиента
+    - name: set owner to storage
+      ansible.builtin.file:
+        path: ~/.mcli
+        state: directory
+    - name: copy mcli config
+      ansible.builtin.template:
+        src: templates/config.json.j2
+        dest: ~/.mcli/config.json
+
+    # Создание bucket`а
+    - name: set owner to storage
+      ansible.builtin.file:
+        path: /data/tfstate
+        state: directory
+        owner: minio-user
+        group: minio-user      
+

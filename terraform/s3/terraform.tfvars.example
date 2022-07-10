@@ -1,0 +1,8 @@
+lxc_pass = "password"
+
+lxc_ssh_public_key = <<EOT
+ssh-rsa <key>= user@pc
+EOT
+
+pve_pm_api_token_id = "user@pve!sa"
+pve_pm_api_token_secret = "key"

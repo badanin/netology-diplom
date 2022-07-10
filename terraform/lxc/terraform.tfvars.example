@@ -1,0 +1,8 @@
+password = "password"
+
+ssh_public_keys = <<EOT
+ssh-rsa <key>= user@pc
+EOT
+
+pm_api_token_id = "user@pve!sa"
+pm_api_token_secret = "key"
