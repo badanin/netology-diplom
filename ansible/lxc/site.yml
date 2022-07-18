@@ -1,0 +1,29 @@
+---
+- name: Configure HOSTS file
+  hosts: all
+  tasks:
+    - name: Update the /etc/hosts file with node name
+      ansible.builtin.lineinfile:
+        path: "/etc/hosts"
+        regexp: ".*\t{{ hostvars[item]['ansible_hostname']}}\t{{ hostvars[item]['ansible_hostname']}}"
+        line: "{{ hostvars[item]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}\t{{ hostvars[item]['ansible_hostname']}}.{{ domain_name }}\t{{ hostvars[item]['ansible_hostname']}}"
+        state: present
+      with_items: "{{ groups['all'] }}"
+
+- name: install NGINX
+  hosts: proxy
+  roles:
+    - nginx
+
+- name: tost
+  hosts: all
+  tasks:
+    - name: test
+      ansible.builtin.debug:
+        msg: "{{ domain_host }}"
+      when: domain_host is defined
+
+    - local_action:
+        module: copy
+        content: "{{ hostvars[inventory_hostname] | to_nice_json }}"
+        dest: "./test/vars_{{ hostvars[inventory_hostname].inventory_hostname }}.json"

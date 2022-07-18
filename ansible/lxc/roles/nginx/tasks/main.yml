@@ -1,0 +1,35 @@
+---
+# Устанавливаем необходимые пакеты
+- name: install nginx
+  ansible.builtin.apt:
+    pkg: 
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: yes
+# Копируем файл конфигурации для certbot
+- name: create certbot config
+  ansible.builtin.template:
+    src: templates/cli.ini.j2
+    dest: /etc/letsencrypt/cli.ini
+
+# # Получаем сертификаты через certbot
+# - name: get certbot certificates
+#   ansible.builtin.command: certbot certonly -n -c /etc/letsencrypt/cli.ini
+
+# Создаем конфигурационные файлы для каждого из хостов
+- name: create nginx configs
+  ansible.builtin.template:
+    src: templates/host.domain.conf.j2
+    dest: /etc/nginx/sites-available/{{ item }}.{{ domain_name }}.conf
+  loop: "{{ domain_hosts }}"
+
+# Включаем сайты и перезапускаем nginx
+- name: enable nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/{{ item }}.{{ domain_name }}.conf
+    dest: /etc/nginx/sites-enabled/{{ item }}.{{ domain_name }}.conf
+    state: link
+  loop: "{{ domain_hosts }}"
+  notify: restart nginx

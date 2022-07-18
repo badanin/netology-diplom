@@ -7,6 +7,19 @@ terraform {
   }
 }
 
+terraform {
+  backend "s3" {
+    bucket = "tfstate"
+    key    = "terraform.tfstate"
+    region = "us-east-1"
+    access_key = "access_key"
+    secret_key = "secret_key"
+    endpoint = "http://bms-devops.ru:9000"
+    skip_credentials_validation = true
+    force_path_style = true
+  }
+}
+
 provider "proxmox" {
   pm_tls_insecure = true
   pm_api_url = "https://bms-devops.ru:8006/api2/json"
@@ -14,9 +27,9 @@ provider "proxmox" {
   pm_api_token_secret = var.pm_api_token_secret
 }
 
-module "n1" {
-    vmid = 201
-    host_name = "n1"
+module "nginx" {
+    vmid = 100
+    host_name = "nginx"
 
     source = "./modules/containers"
     domain = var.domain
@@ -24,9 +37,9 @@ module "n1" {
     ssh_public_keys = var.ssh_public_keys
 }
 
-module "n2" {
-    vmid = 202
-    host_name = "n2"
+module "wp" {
+    vmid = 101
+    host_name = "wp"
 
     source = "./modules/containers"
     domain = var.domain
@@ -34,9 +47,18 @@ module "n2" {
     ssh_public_keys = var.ssh_public_keys
 }
 
-module "n3" {
-    vmid = 203
-    host_name = "n3"
+module "db1" {
+    vmid = 102
+    host_name = "db1"
+
+    source = "./modules/containers"
+    domain = var.domain
+    password = var.password
+    ssh_public_keys = var.ssh_public_keys
+}
+module "db2" {
+    vmid = 103
+    host_name = "db2"
 
     source = "./modules/containers"
     domain = var.domain

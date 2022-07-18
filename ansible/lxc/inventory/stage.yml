@@ -1,0 +1,21 @@
+---
+proxy:
+  hosts:
+    bms-devops.ru:
+      ansible_connection: ssh
+      ansible_user: root
+lxc:
+  hosts:
+    wp:
+      ansible_host: 172.16.0.101
+      http_port: 8080
+      domain_host: www
+    db1:
+      ansible_host: 172.16.0.102
+    db2:
+      ansible_host: 172.16.0.103
+  vars:
+      ansible_connection: ssh
+      ansible_user: root
+      ansible_ssh_common_args: "-J root@bms-devops.ru"
+

@@ -1,0 +1,6 @@
+---
+domain_name: bms-devops.ru
+domain_hosts: ['www','grafana','prometheus','alertmanager','gitlab']
+
+
+#deploy_state: "stage"

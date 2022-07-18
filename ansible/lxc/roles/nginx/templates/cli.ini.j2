@@ -1,0 +1,19 @@
+{# Принимаем соглашение, активация происходит через NGINX без почты #}
+agree-tos = true
+authenticator = nginx
+# installer = nginx
+register-unsafely-without-email = true
+
+{# Если prod, то боевые сервера, во всех остальных случаях тестовые #}
+server = {% if deploy_state == "prod" %}
+https://acme-v02.api.letsencrypt.org/directory
+{% else %}
+https://acme-staging-v02.api.letsencrypt.org/directory
+{% endif%}
+
+{# Перечень доменных имен из переменной domain_hosts #}
+domains = {{domain_name}},{% for host in domain_hosts %}
+{{ host }}.{{domain_name}}
+{%- if not loop.last %},{% endif %}
+{% endfor %}
+

@@ -1,0 +1,3 @@
+---
+# defaults file for nginx
+deploy_state: "staging"

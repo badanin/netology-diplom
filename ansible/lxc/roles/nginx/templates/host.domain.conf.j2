@@ -1,0 +1,31 @@
+server {
+    listen 80;
+    server_name {{ item }}.{{domain_name}};
+    return 404;
+
+    if ($host = {{ item }}.{{domain_name}}) {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name {{ item }}.{{domain_name}};
+
+    ssl_certificate /etc/letsencrypt/live/{{domain_name}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{domain_name}}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    
+    location / {
+            proxy_pass http://{{ item }}.{{domain_name}}/;
+            proxy_buffering off;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header X-Forwarded-Port $server_port;
+            proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+}

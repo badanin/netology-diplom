@@ -16,6 +16,6 @@ terraform.rc
 
 # ansible
 *secret.yml
-
+ansible/*/test
 # etc
 links
