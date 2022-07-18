@@ -1,6 +1,17 @@
 ---
 domain_name: bms-devops.ru
-domain_hosts: ['www','grafana','prometheus','alertmanager','gitlab']
 
+role_host:
+  www:
+    server: 'www'
+    port: 80
+  gitlab:
+    server: 'gitlab'
+  grafana:
+    server: 'mon'
+  prometheus:
+    server: 'mon'
+  alertmanager:
+    server: 'mon'
 
-#deploy_state: "stage"
+deploy_state: "stage"

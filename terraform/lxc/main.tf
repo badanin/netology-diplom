@@ -37,9 +37,9 @@ module "nginx" {
     ssh_public_keys = var.ssh_public_keys
 }
 
-module "wp" {
+module "www" {
     vmid = 101
-    host_name = "wp"
+    host_name = "www"
 
     source = "./modules/containers"
     domain = var.domain
@@ -59,6 +59,26 @@ module "db1" {
 module "db2" {
     vmid = 103
     host_name = "db2"
+
+    source = "./modules/containers"
+    domain = var.domain
+    password = var.password
+    ssh_public_keys = var.ssh_public_keys
+}
+
+module "gitlab" {
+    vmid = 104
+    host_name = "gitlab"
+
+    source = "./modules/containers"
+    domain = var.domain
+    password = var.password
+    ssh_public_keys = var.ssh_public_keys
+}
+
+module "mon" {
+    vmid = 105
+    host_name = "mon"
 
     source = "./modules/containers"
     domain = var.domain

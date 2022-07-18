@@ -12,7 +12,7 @@ https://acme-staging-v02.api.letsencrypt.org/directory
 {% endif%}
 
 {# Перечень доменных имен из переменной domain_hosts #}
-domains = {{domain_name}},{% for host in domain_hosts %}
+domains = {{domain_name}},{% for host in role_host %}
 {{ host }}.{{domain_name}}
 {%- if not loop.last %},{% endif %}
 {% endfor %}

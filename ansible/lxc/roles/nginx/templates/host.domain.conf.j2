@@ -1,16 +1,16 @@
 server {
     listen 80;
-    server_name {{ item }}.{{domain_name}};
+    server_name {{ item.key }}.{{domain_name}};
     return 404;
 
-    if ($host = {{ item }}.{{domain_name}}) {
+    if ($host = {{ item.key }}.{{domain_name}}) {
         return 301 https://$host$request_uri;
     }
 }
 
 server {
     listen 443 ssl;
-    server_name {{ item }}.{{domain_name}};
+    server_name {{ item.key }}.{{domain_name}};
 
     ssl_certificate /etc/letsencrypt/live/{{domain_name}}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{{domain_name}}/privkey.pem;
@@ -18,7 +18,7 @@ server {
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
     
     location / {
-            proxy_pass http://{{ item }}.{{domain_name}}/;
+            proxy_pass http://{{ item.value.server }}.{{domain_name}}{% if item.value.port is defined %}:{{item.value.port}}{% endif %}/;
             proxy_buffering off;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;

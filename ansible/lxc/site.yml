@@ -14,16 +14,3 @@
   hosts: proxy
   roles:
     - nginx
-
-- name: tost
-  hosts: all
-  tasks:
-    - name: test
-      ansible.builtin.debug:
-        msg: "{{ domain_host }}"
-      when: domain_host is defined
-
-    - local_action:
-        module: copy
-        content: "{{ hostvars[inventory_hostname] | to_nice_json }}"
-        dest: "./test/vars_{{ hostvars[inventory_hostname].inventory_hostname }}.json"

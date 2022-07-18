@@ -1,21 +1,27 @@
 ---
-proxy:
-  hosts:
-    bms-devops.ru:
+# Настройка для всех хостов
+all:
+  vars:
       ansible_connection: ssh
       ansible_user: root
+
+proxy:
+  hosts:
+    nginx:
+      ansible_host: bms-devops.ru
+
 lxc:
   hosts:
     wp:
       ansible_host: 172.16.0.101
-      http_port: 8080
-      domain_host: www
     db1:
       ansible_host: 172.16.0.102
     db2:
       ansible_host: 172.16.0.103
+    gitlab:
+      ansible_host: 172.16.0.104
+    mon:
+      ansible_host: 172.16.0.105
   vars:
-      ansible_connection: ssh
-      ansible_user: root
       ansible_ssh_common_args: "-J root@bms-devops.ru"
 
