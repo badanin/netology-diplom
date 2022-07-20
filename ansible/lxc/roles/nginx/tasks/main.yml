@@ -18,7 +18,6 @@
 # Получаем сертификаты через certbot
 - name: get certbot certificates
   ansible.builtin.command: certbot certonly -n -c /etc/letsencrypt/cli.ini
-  when: deploy_state != ""
   register: get_sertificate
   changed_when: "'Congratulations!' in get_sertificate.stdout"
 

@@ -1,12 +1,13 @@
 ---
 # Имя зарегистрированного домена
 domain_name: bms-devops.ru
+wp_pass: wordpress
 
 # Список ролей, на какаих серверах они запускаются и дополнительные параметры
 role_host:
   www:
     server: 'www'
-    port: 80
+    # port: 80
   gitlab:
     server: 'gitlab'
   grafana:

@@ -1,0 +1,14 @@
+[client-server]
+socket = /run/mysqld/mysqld.sock
+!includedir /etc/mysql/conf.d/
+!includedir /etc/mysql/mariadb.conf.d/
+
+[mysqld]
+bind-address = 0.0.0.0
+[mariadb]
+server-id = {% if ansible_hostname == "db1" %}1{% else %}2{% endif %}
+
+log_bin = /var/log/mysql/mysql-bin.log
+max_binlog_size = 100M
+relay_log = /var/log/mysql/mysql-relay-bin
+relay_log_index = /var/log/mysql/mysql-relay-bin.index

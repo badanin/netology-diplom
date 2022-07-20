@@ -1,0 +1,69 @@
+---
+# Устанавливаем необходимые компоненты для mariadb
+- name: install mariadb
+  ansible.builtin.apt:
+    pkg:
+      - mariadb-server
+      - mariadb-client
+      - python3-mysqldb
+    state: present
+
+# Создаем файлы конфигурации
+- name: configure mariadb
+  ansible.builtin.template:
+    src: templates/my.cnf.j2
+    dest: /etc/mysql/mariadb.cnf
+  notify: restart mariadb
+
+# Перезапускаем службы
+- name: force restart after config
+  ansible.builtin.meta: flush_handlers
+
+# Создаем учетную запись для репликации
+- name: create replication user
+  community.mysql.mysql_user:
+    name: replication
+    password: replication
+    priv: "*.*:REPLICATION SLAVE"
+    host: "172.16.0.%"
+    state: present
+  when: ansible_hostname == "db1"
+
+# Проверка запущена ли репликация
+- name: check replica
+  community.mysql.mysql_replication:
+    mode: getslave
+  register: replica_state
+  when: ansible_hostname == "db2"
+
+# Настраиваем slave
+- name: change primary
+  community.mysql.mysql_replication:
+    mode: changemaster
+    master_host: db1
+    master_user: replication
+    master_password: replication
+  when: 
+    - ansible_hostname == "db2"
+    - replica_state.Slave_IO_Running is not defined
+    - replica_state.Slave_SQL_Running is not defined 
+  notify: restart mariadb
+
+# Создаем базу данных для wordpress
+- name: create database
+  community.mysql.mysql_db:
+    name: wordpress
+    state: present
+  when: ansible_hostname == "db1"
+
+# Создаем пользователя для wordpress
+- name: create user
+  community.mysql.mysql_user:
+    name: wordpress
+    password: "{{ wp_pass }}"
+    priv: "wordpress.localhost:ALL"
+    host: "172.16.0.%"
+    state: present
+  when: ansible_hostname == "db1"
+
+

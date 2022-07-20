@@ -1,9 +1,9 @@
 ---
 # На каждом из хостов в инвентори all создается файл hosts и добавляет туда сосендние сервера
-- name: Configure HOSTS file
+- name: configure hosts file
   hosts: all
   tasks:
-    - name: Update the /etc/hosts file with node name
+    - name: update hosts files
       ansible.builtin.lineinfile:
         path: "/etc/hosts"
         regexp: ".*\t{{ hostvars[item]['ansible_hostname']}}\t{{ hostvars[item]['ansible_hostname']}}"
@@ -12,7 +12,13 @@
       with_items: "{{ groups['all'] }}"
 
 # Установка роли nginx, выпуск сертификатов и настройка проксирования
-- name: install NGINX
+- name: install nginx
   hosts: proxy
   roles:
     - nginx
+
+# Установка роли db, настройка репликации
+- name: install db
+  hosts: db
+  roles:
+    - db

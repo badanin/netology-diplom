@@ -25,3 +25,9 @@ lxc:
   vars:
       ansible_ssh_common_args: "-J root@bms-devops.ru"
 
+db:
+  hosts:
+    db1:
+      db_state: master
+    db2:
+      db_state: slave
