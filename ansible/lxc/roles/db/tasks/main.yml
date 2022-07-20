@@ -61,9 +61,10 @@
   community.mysql.mysql_user:
     name: wordpress
     password: "{{ wp_pass }}"
-    priv: "wordpress.localhost:ALL"
-    host: "172.16.0.%"
+    priv: "wordpress.*:ALL"
+    host: "{{ item }}"
     state: present
   when: ansible_hostname == "db1"
+  with_items: ["172.16.0.%", "www.bms-devops.ru", "localhost"]
 
 

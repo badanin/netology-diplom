@@ -1,0 +1,66 @@
+---
+# Устанавливаем php и модуль для работы с db
+- name: install php
+  ansible.builtin.apt:
+    pkg:
+      - php
+      - php-mysql
+      - php-zip
+      - php-curl
+      - php-imagick
+      - php-mbstring
+      - php-xml
+      - php-json
+    state: present
+
+# Загружаем последнюю актуальную версию wordpress
+- name: get wordpress
+  ansible.builtin.get_url:
+    url: https://wordpress.org/latest.tar.gz
+    dest: /tmp/latest.tar.gz
+
+# Создаем директорию для wordpress
+- name: create wordpress directory
+  ansible.builtin.file:
+    path: /var/www/html/www.bms-devops.ru
+    state: directory
+    owner: www-data
+    group: www-data
+
+# Распаковываем содержимое архива
+- name: extract wordpress
+  ansible.builtin.unarchive:
+    src: /tmp/latest.tar.gz
+    dest: /var/www/html/www.bms-devops.ru
+    remote_src: yes
+    extra_opts: "--strip-components=1"
+    owner: www-data
+    group: www-data
+
+# Создаем файл конфигурации wordpress
+- name: create wordpress config
+  ansible.builtin.template:
+    src: templates/wp-config.php.j2
+    dest: /var/www/html/www.bms-devops.ru/wp-config.php
+    owner: www-data
+    group: www-data
+
+# Создаем файл конфигурации apache2
+- name: create apache config
+  ansible.builtin.template:
+    src: templates/www.bms-devops.ru.conf.j2
+    dest: /etc/apache2/sites-available/www.bms-devops.ru.conf
+
+# Отключаем сайт по умполчанию
+- name: disable default site
+  ansible.builtin.file:
+    path: /etc/apache2/sites-enabled/000-default.conf
+    state: absent
+
+# Включаем сайт wordpress и перезапускаем службу
+- name: enable wordpress site
+  ansible.builtin.file:
+    src: /etc/apache2/sites-available/www.bms-devops.ru.conf
+    dest: /etc/apache2/sites-enabled/www.bms-devops.ru.conf
+    state: link
+  notify: restart apache2

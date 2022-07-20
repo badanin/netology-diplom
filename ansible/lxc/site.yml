@@ -22,3 +22,9 @@
   hosts: db
   roles:
     - db
+
+# Установка apache2 с php, загрузка wordpress, конфигурация сайта
+- name: install www
+  hosts: app
+  roles:
+    - www

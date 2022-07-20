@@ -1,0 +1,12 @@
+<VirtualHost *:80>
+    ServerAdmin admin@www.bms-devops.ru
+    ServerName www.bms-devops.ru
+    DocumentRoot /var/www/html/www.bms-devops.ru
+
+    <Directory "/var/www/html/www.bms-devops.ru">
+            AllowOverride All
+    </Directory>
+    LogLevel debug
+    ErrorLog ${APACHE_LOG_DIR}/www.bms-devops.ru.error.log
+    CustomLog ${APACHE_LOG_DIR}/www.bms-devops.ru.access.log combined
+</VirtualHost>

@@ -7,7 +7,6 @@ wp_pass: wordpress
 role_host:
   www:
     server: 'www'
-    # port: 80
   gitlab:
     server: 'gitlab'
   grafana:

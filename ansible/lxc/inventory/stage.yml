@@ -12,7 +12,7 @@ proxy:
 
 lxc:
   hosts:
-    wp:
+    www:
       ansible_host: 172.16.0.101
     db1:
       ansible_host: 172.16.0.102
@@ -31,3 +31,7 @@ db:
       db_state: master
     db2:
       db_state: slave
+
+app:
+  hosts:
+    www:
