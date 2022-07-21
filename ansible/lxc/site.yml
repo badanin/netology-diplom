@@ -1,6 +1,6 @@
 ---
-# На каждом из хостов в инвентори all создается файл hosts и добавляет туда сосендние сервера
-- name: configure hosts file
+# На каждом из хостов в инвентори all создается файл hosts и добавляет туда сосендние сервера, настраивается ssh
+- name: configure ssh and hosts file 
   hosts: all
   tasks:
     - name: update hosts files
@@ -10,6 +10,11 @@
         line: "{{ hostvars[item]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}\t{{ hostvars[item]['ansible_hostname']}}.{{ domain_name }}\t{{ hostvars[item]['ansible_hostname']}}"
         state: present
       with_items: "{{ groups['all'] }}"
+    - name: config ssh
+      ansible.builtin.template:
+        src: templates/ssh.config.j2
+        dest: ~/.ssh/config
+
 
 # Установка роли nginx, выпуск сертификатов и настройка проксирования
 - name: install nginx
@@ -28,3 +33,9 @@
   hosts: app
   roles:
     - www
+
+# Установка gitlab
+- name: install gitlab
+  hosts: git
+  roles:
+    - gitlab

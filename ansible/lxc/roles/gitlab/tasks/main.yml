@@ -1,0 +1,60 @@
+---
+# Устанавливаем необходимые пакеты 
+- name: install packages
+  ansible.builtin.apt:
+    update_cache: yes
+    pkg:
+      - gnupg2
+
+# Копируем ключи репозитория
+- name: add gitlab repo key
+  ansible.builtin.apt_key:
+    url: https://packages.gitlab.com/gitlab/gitlab-ce/gpgkey
+    keyring: /etc/apt/trusted.gpg.d/gitlab_gitlab-ce-archive-keyring.gpg
+
+# Копируем файл репозитория
+- name: copy gitlab repo list
+  ansible.builtin.template:
+    src: templates/gitlab.list.j2
+    dest: /etc/apt/sources.list.d/gitlab_gitlab-ce.list
+
+# Устанавливаем gitlab
+- name: install gitlab
+  ansible.builtin.apt:
+    update_cache: yes
+    pkg:
+      - gitlab-ce
+
+# Добавляем локализации в систему
+- name: Ensure a locale exists
+  ansible.builtin.locale_gen:
+    name: "{{ item }}"
+    state: present
+  loop: 
+    - en_US.UTF-8
+    - ru_RU.UTF-8
+
+# Задаем локализацию по умолчанию
+- name: change locale
+  ansible.builtin.lineinfile:
+    name: /etc/default/locale
+    regexp: '^LANG='
+    line: 'LANG=en_US.UTF-8'
+
+# Копируем конфигурационный файл gitlab
+- name: copy gitlab config
+  ansible.builtin.template:
+    backup: yes
+    src: templates/gitlab.rb.j2
+    dest: /etc/gitlab/gitlab.rb
+
+# Проверка установлен ли gitlab
+- name: get service facts
+  ansible.builtin.service_facts:
+
+# Запускаем конфигурирование и установку gitlab
+- name: reconfigure gitlab
+  ansible.builtin.command: 'gitlab-ctl reconfigure'
+  async: 300
+  poll: 5
+  when: '"gitlab-runsvdir.service" not in services'

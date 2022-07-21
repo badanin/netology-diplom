@@ -2,6 +2,7 @@
 # Имя зарегистрированного домена
 domain_name: bms-devops.ru
 wp_pass: wordpress
+gitlab_pass: password
 
 # Список ролей, на какаих серверах они запускаются и дополнительные параметры
 role_host:
