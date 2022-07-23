@@ -1,8 +1,9 @@
 ---
-# На каждом из хостов в инвентори all создается файл hosts и добавляет туда сосендние сервера, настраивается ssh
+# Предварительная подготовка хостов
 - name: configure ssh and hosts file 
   hosts: all
   tasks:
+    # На каждом из хостов добавляем сосоедние сервера в файл hosts
     - name: update hosts files
       ansible.builtin.lineinfile:
         path: "/etc/hosts"
@@ -10,10 +11,22 @@
         line: "{{ hostvars[item]['ansible_env'].SSH_CONNECTION.split(' ')[2] }}\t{{ hostvars[item]['ansible_hostname']}}.{{ domain_name }}\t{{ hostvars[item]['ansible_hostname']}}"
         state: present
       with_items: "{{ groups['all'] }}"
+    # Создаем конфигурационный файл ssh
     - name: config ssh
       ansible.builtin.template:
         src: templates/ssh.config.j2
         dest: ~/.ssh/config
+    # Генерируем ssh ключи
+    - name: generate ssh keypair
+      community.crypto.openssh_keypair:
+        path: ~/.ssh/id_rsa
+      register: ssh_keys
+    # Обмениваемся ssh ключами
+    - name: exchange ssh public key
+      ansible.builtin.lineinfile:
+        path: ~/.ssh/authorized_keys
+        line: "{{ hostvars[item].ssh_keys.public_key }}"
+      with_items: "{{ groups['all'] }}"
 
 
 # Установка роли nginx, выпуск сертификатов и настройка проксирования
@@ -34,8 +47,9 @@
   roles:
     - www
 
-# Установка gitlab
+# Установка gitlab и gitlab-runner
 - name: install gitlab
   hosts: git
   roles:
     - gitlab
+    - gitlab-runner

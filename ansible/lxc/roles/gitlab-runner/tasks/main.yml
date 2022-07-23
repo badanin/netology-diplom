@@ -1,0 +1,53 @@
+---
+# Устанавливаем необходимые пакеты 
+- name: install packages
+  ansible.builtin.apt:
+    update_cache: yes
+    pkg:
+      - gnupg2
+
+# Копируем ключи репозитория
+- name: add gitlab-runner repo key
+  ansible.builtin.apt_key:
+    url: https://packages.gitlab.com/runner/gitlab-runner/gpgkey
+    keyring: /etc/apt/trusted.gpg.d/runner_gitlab-runner-archive-keyring.gpg
+
+# Копируем файл репозитория
+- name: copy gitlab-runner repo list
+  ansible.builtin.template:
+    src: templates/gitlab-runner.list.j2
+    dest: /etc/apt/sources.list.d/runner_gitlab-runner.list
+
+# Устанавливаем gitlab-runner
+- name: install gitlab-runner
+  ansible.builtin.apt:
+    update_cache: yes
+    pkg:
+      - gitlab-runner
+
+# Проверяем состояние регистрации gitlab-runner
+- name: check gitlab-runner exist
+  ansible.builtin.command: 'gitlab-runner verify -n local-ssh'
+  ignore_errors: yes
+  register: gitlab_runner_status
+  changed_when: False
+  failed_when: 
+    - '"no runner matches the filtering parameters" not in gitlab_runner_status.stderr'
+    - '"Verifying runner..." not in gitlab_runner_status.stderr'
+
+# Регистрируем gitlab-runner
+- name: configure gitlab-runner
+  ansible.builtin.command: 'gitlab-runner register'
+  environment:
+    REGISTER_NON_INTERACTIVE: true
+    CI_SERVER_URL: "http://{{ ansible_fqdn }}/"
+    REGISTRATION_TOKEN: "{{ gitlab_runner_token }}"
+    RUNNER_EXECUTOR: ssh
+    RUNNER_NAME: local-ssh
+    REGISTER_LOCKED: false
+    DISABLE_STRICT_HOST_KEY_CHECKING: true
+    SSH_HOST: www
+    SSH_PORT: 22
+    SSH_USER: root
+    SSH_IDENTITY_FILE: /root/.ssh/id_rsa
+  when: '"alive" not in gitlab_runner_status.stderr'

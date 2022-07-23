@@ -26,7 +26,7 @@
       - gitlab-ce
 
 # Добавляем локализации в систему
-- name: Ensure a locale exists
+- name: ensure a locale exists
   ansible.builtin.locale_gen:
     name: "{{ item }}"
     state: present

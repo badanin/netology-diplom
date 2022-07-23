@@ -7,9 +7,9 @@
 - [x] 2. *Подготовить инфраструктуру с помощью Terraform на базе облачного провайдера YandexCloud.*
 - [x] 3. *Настроить внешний Reverse Proxy на основе Nginx и LetsEncrypt.*
 - [x] 4. *Настроить кластер MySQL.*
-- [ ] 5. *Установить WordPress.*
-- [ ] 6. *Развернуть Gitlab CE и Gitlab Runner.*
-- [ ] 7. *Настроить CI/CD для автоматического развёртывания приложения.*
+- [x] 5. *Установить WordPress.*
+- [x] 6. *Развернуть Gitlab CE и Gitlab Runner.*
+- [x] 7. *Настроить CI/CD для автоматического развёртывания приложения.*
 - [ ] 8. *Настроить мониторинг инфраструктуры с помощью стека: Prometheus, Alert Manager и Grafana.*
 </details>
 
@@ -376,19 +376,52 @@ MariaDB [(none)]> SHOW SLAVE STATUS \G;
 
 **Цель:**
 
-- [ ] 1. *Построить pipeline доставки кода в среду эксплуатации, то есть настроить автоматический деплой на сервер app.you.domain при коммите в репозиторий с WordPress. Подробнее о Gitlab CI*
+- [x] 1. *Построить pipeline доставки кода в среду эксплуатации, то есть настроить автоматический деплой на сервер app.you.domain при коммите в репозиторий с WordPress. Подробнее о Gitlab CI*
 
 **Ожидаемый результат:**
 
-- [ ] 1. *Интерфейс Gitlab доступен по https.*
-- [ ] 2. *В вашей доменной зоне настроена A-запись на внешний адрес reverse proxy:*
+- [x] 1. *Интерфейс Gitlab доступен по https.*
+- [x] 2. *В вашей доменной зоне настроена A-запись на внешний адрес reverse proxy:*
     - *https://gitlab.you.domain (Gitlab)*
-- [ ] 3. *На сервере you.domain отредактирован upstream для выше указанного URL и он смотрит на виртуальную машину на которой установлен Gitlab.*
-- [ ] 4. *При любом коммите в репозиторий с WordPress и создании тега (например, v1.0.0) происходит деплой на виртуальную машину.*
+- [x] 3. *На сервере you.domain отредактирован upstream для выше указанного URL и он смотрит на виртуальную машину на которой установлен Gitlab.*
+- [x] 4. *При любом коммите в репозиторий с WordPress и создании тега (например, v1.0.0) происходит деплой на виртуальную машину.*
 ---
 </details>
 
 ## Решение:
+
+1. Интерфейс gitlab доступен по внешнему адресу [https://gitlab.bms-devops.ru](https://gitlab.bms-devops.ru). Создан репозиторий для `wordpress`.
+
+![Репозиторий wordpress](img/gitlab_wp_repo.png)
+
+2. В репозитории создан `pipeline`, который публикует `.html` страницу в `wordpress` при создании тега: **v`<major>`.`<minor>`.`<patch>`**.
+
+```yaml
+stages:
+  - run
+
+publish:
+  rules:
+  - if: $CI_COMMIT_TAG =~ /^v\d+.\d+.\d+$/
+  
+  stage: run
+  script:
+    - mkdir -p /var/www/html/www.bms-devops.ru/runner
+    - chown -R www-data:www-data /var/www/html/www.bms-devops.ru/
+    - cp *.html /var/www/html/www.bms-devops.ru/runner
+```
+
+![Работа gitlab-runner](img/gitlab_runner.png)
+
+![Опубликованная страница](img/wp_page.png)
+
+3. При коммите новой версии с тегом `v1.0.1`, запускается `gitlab-runner`, который обновляет страницу.
+
+![Добавление новой версии](img/gitlab_main.png)
+
+![Работы gitlab-runner](img/gitlab_jobs.png)
+
+![Обнавленная версия](img/wp_new_ver.png)
 
 ---
 

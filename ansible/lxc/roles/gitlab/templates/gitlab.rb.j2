@@ -1,4 +1,6 @@
-external_url 'http://{{ ansible_fqdn }}'
-gitlab_rails['initial_root_password'] = "{{ gitlab_pass }}"
 letsencrypt['enable'] = false
 package['modify_kernel_parameters'] = false
+
+external_url 'http://{{ ansible_fqdn }}'
+gitlab_rails['initial_root_password'] = "{{ gitlab_pass }}"
+gitlab_rails['initial_shared_runners_registration_token'] = "{{ gitlab_runner_token }}"

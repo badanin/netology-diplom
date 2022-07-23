@@ -69,9 +69,9 @@ module "db2" {
 module "gitlab" {
     vmid = 104
     host_name = "gitlab"
-    rootfs_size = "6G"
-    memory = 4096
-
+    rootfs_size = "8G"
+    memory = 5120
+    cores = 4
     source = "./modules/containers"
     domain = var.domain
     password = var.password
