@@ -39,3 +39,7 @@ app:
 git:
   hosts:
     gitlab:
+
+monitoring:
+  hosts:
+    mon:

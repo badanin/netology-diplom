@@ -1,0 +1,107 @@
+---
+- name: install packages
+  ansible.builtin.apt:
+    update_cache: yes
+    pkg:
+      - gnupg2
+
+# Копируем ключи репозитория
+- name: add docker repo key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/debian/gpg
+    keyring: /etc/apt/trusted.gpg.d/docker.gpg
+
+# Копируем файл репозитория
+- name: copy docker repo list
+  ansible.builtin.template:
+    src: templates/docker.list.j2
+    dest: /etc/apt/sources.list.d/docker.list
+
+# Устанавливаем docker
+- name: install docker
+  ansible.builtin.apt:
+    update_cache: yes
+    pkg:
+      - docker-ce
+      - docker-compose
+
+# Создаем директорию для динных контейнеров
+- name: create data directory
+  ansible.builtin.file:
+    path: /data/
+    state: directory
+
+# Создаем директории для prometheus
+- name: create prometheus directory
+  ansible.builtin.file:
+    recurse: yes
+    path: "{{ item }}"
+    state: directory
+    owner: nobody
+    group: nogroup
+  loop:
+    - /data/prometheus/data
+    - /data/prometheus/config
+
+# Создаем директорию для grafana
+- name: create grafana directory
+  ansible.builtin.file:
+    path: /data/grafana
+    state: directory
+    owner: "472"
+
+# Копируем конфигурационный файл для prometheus
+- name: create prometheus config
+  ansible.builtin.template:
+    src: templates/prometheus.yml.j2
+    dest: /data/prometheus/config/prometheus.yml
+    owner: nobody
+    group: nogroup
+
+# Копируем конфигурационный файл для алертов
+- name: create prometheus alert
+  ansible.builtin.copy:
+    src: templates/down.yml.j2
+    dest: /data/prometheus/config/down.yml
+    owner: nobody
+    group: nogroup
+
+# Запускаем контейнер prometheus
+- name: start prometheus container
+  community.docker.docker_container:
+    container_default_behavior: compatibility
+    image: prom/prometheus
+    name: prometheus
+    hostname: prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - /data/prometheus/config:/etc/prometheus
+      - /data/prometheus/data:/prometheus
+    etc_hosts: "{{hosts_dict}}"
+
+# Запускаем контейнер grafana
+- name: start grafana container
+  community.docker.docker_container:
+    container_default_behavior: compatibility
+    image: grafana/grafana-oss
+    name: grafana
+    hostname: "{{ grafana_pass }}"
+    ports:
+      - 3000:3000
+    volumes:
+      - /data/grafana:/var/lib/grafana
+    etc_hosts: "{{hosts_dict}}"
+    env:
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "password"
+
+# Запускаем контейнер alertmanager
+- name: start alertmanager container
+  community.docker.docker_container:
+    container_default_behavior: compatibility
+    image: prom/alertmanager
+    name: alertmanager
+    hostname: alertmanager
+    ports:
+      - 9093:9093

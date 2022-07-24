@@ -27,29 +27,53 @@
         path: ~/.ssh/authorized_keys
         line: "{{ hostvars[item].ssh_keys.public_key }}"
       with_items: "{{ groups['all'] }}"
+    # Создаем перечень хостов и их ip
+    - name: create dict for hostname
+      ansible.builtin.set_fact:
+        hosts_dict: "{{ hosts_dict|default({}) | combine( {hostvars[item].ansible_hostname: hostvars[item].ansible_default_ipv4.address} )}}"
+      with_items: "{{ hostvars }}"
+      delegate_to: localhost
 
 
 # Установка роли nginx, выпуск сертификатов и настройка проксирования
 - name: install nginx
+  gather_facts: no
   hosts: proxy
   roles:
     - nginx
 
 # Установка роли db, настройка репликации
 - name: install db
+  gather_facts: no
   hosts: db
   roles:
     - db
 
 # Установка apache2 с php, загрузка wordpress, конфигурация сайта
 - name: install www
+  gather_facts: no
   hosts: app
   roles:
     - www
 
 # Установка gitlab и gitlab-runner
 - name: install gitlab
+  gather_facts: no
   hosts: git
   roles:
     - gitlab
     - gitlab-runner
+
+# Установка prometheus, alertmanager, grafana
+- name: install monitoring
+  gather_facts: no
+  hosts: monitoring
+  roles:
+    - monitoring
+
+# Установка node_exporter
+- name: install node_exporter
+  gather_facts: no
+  hosts: all:!gitlab
+  roles:
+    - node_exporter
