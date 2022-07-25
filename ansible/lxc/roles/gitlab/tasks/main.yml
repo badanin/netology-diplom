@@ -24,6 +24,8 @@
     update_cache: yes
     pkg:
       - gitlab-ce
+  async: 300
+  poll: 5
 
 # Добавляем локализации в систему
 - name: ensure a locale exists

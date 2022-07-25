@@ -24,6 +24,8 @@
     pkg:
       - docker-ce
       - docker-compose
+  async: 300
+  poll: 5
 
 # Создаем директорию для динных контейнеров
 - name: create data directory
@@ -79,6 +81,8 @@
       - /data/prometheus/config:/etc/prometheus
       - /data/prometheus/data:/prometheus
     etc_hosts: "{{hosts_dict}}"
+  retries: 3
+  delay: 3
 
 # Запускаем контейнер grafana
 - name: start grafana container
@@ -95,6 +99,8 @@
     env:
       GF_SECURITY_ADMIN_USER: "admin"
       GF_SECURITY_ADMIN_PASSWORD: "password"
+  retries: 3
+  delay: 3
 
 # Запускаем контейнер alertmanager
 - name: start alertmanager container
@@ -105,3 +111,5 @@
     hostname: alertmanager
     ports:
       - 9093:9093
+  retries: 3
+  delay: 3

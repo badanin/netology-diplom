@@ -10,8 +10,886 @@
 - [x] 5. *Установить WordPress.*
 - [x] 6. *Развернуть Gitlab CE и Gitlab Runner.*
 - [x] 7. *Настроить CI/CD для автоматического развёртывания приложения.*
-- [ ] 8. *Настроить мониторинг инфраструктуры с помощью стека: Prometheus, Alert Manager и Grafana.*
+- [x] 8. *Настроить мониторинг инфраструктуры с помощью стека: Prometheus, Alert Manager и Grafana.*
 </details>
+
+# Общее описание
+
+1. В качестве "Облачного сервиса" был взят сервер с установленным `Proxmox`, доступ к которому был организован через арендованный `VPS` с прямым внешним `IP`.
+
+<details>
+<summary>Схема...</summary>
+
+![start](img/s/1.png)
+</details>
+
+---
+
+2. В качестве хранилища состояний `terraform` был развернут `MinIO S3` сервис.
+
+[terraform - s3](https://github.com/badanin/netology-diplom/tree/master/terraform/s3)  
+
+[ansible - s3](https://github.com/badanin/netology-diplom/tree/master/ansible/s3)
+
+<details>
+<summary>Схема...</summary>
+
+![s3](img/s/2.png)
+</details>
+
+---
+
+3. С помощью сценария `terraform` развернуто 6-ть `LXC` контейнера, на которые передается открытые ключи `ssh` для организации удаленного доступа
+
+[terraform - lxc](https://github.com/badanin/netology-diplom/tree/master/terraform/lxc)
+
+<details>
+<summary>Схема...</summary>
+
+![lxc](img/s/3.png)
+</details>
+
+---
+
+4. При запуске плейбука `ansible`, первым этупом производится предварительная настройка всех хостов. Пополняются файлы `/etc/hosts`, для обеспечения коммуникации между хостами по именам. Производится генерация `ssh`-ключей и их обмен между хостами.
+
+[ansible - playbook](https://github.com/badanin/netology-diplom/tree/master/ansible/lxc)
+
+<details>
+<summary>Схема...</summary>
+
+![hosts](img/s/4.png)
+</details>
+
+---
+
+5. Роль `nginx` производится установки службы, выпуск валидный сертификатов через `certbot` и генерацию файлов конфигурации для всех публичных хостов. Данный хост выступает в качестве `jump-host`, для доступа к остальным.
+
+[ansible - nginx](https://github.com/badanin/netology-diplom/tree/master/ansible/lxc/roles/nginx)
+
+<details>
+<summary>Схема...</summary>
+
+![nginx](img/s/5.png)
+</details>
+
+---
+
+6. На двух хостах разворачивается кластер `mariadb` по схеме `master/slave`. Создается база данных для `wordpress`.
+
+[ansible - db](https://github.com/badanin/netology-diplom/tree/master/ansible/lxc/roles/db)
+
+<details>
+<summary>Схема...</summary>
+
+![nginx](img/s/6.png)
+</details>
+
+---
+
+7. Производится установка `apache2` сервера с `php7.4`, на который загружается и разворачивается `wordpress` в базу данных из прошлого шага.
+
+[ansible - wordpress](https://github.com/badanin/netology-diplom/tree/master/ansible/lxc/roles/www)
+
+<details>
+<summary>Схема...</summary>
+
+![nginx](img/s/7.png)
+</details>
+
+---
+
+8. Устанавливается `gitlab` и `gitlab-runner`. Создается `pipeline`, который публикует страницы из репозитория в `wordpress` через `ssh`.
+
+[ansible - gitlab](https://github.com/badanin/netology-diplom/tree/master/ansible/lxc/roles/gitlab)  
+
+[ansible - gitlab-runner](https://github.com/badanin/netology-diplom/tree/master/ansible/lxc/roles/gitlab-runner)
+
+<details>
+<summary>Схема...</summary>
+
+![nginx](img/s/8.png)
+</details>
+
+---
+
+9. На хосте запускается 3-службы в `docker`-контейнерах. `prometheus` - обеспечивает сбор информации с хостов и генерацию алертов, `grafana` - обеспечивается визуализацию метрик, `alertmanager` - производит оповещение.
+
+[ansible - monitoring](https://github.com/badanin/netology-diplom/tree/master/ansible/lxc/roles/monitoring)
+
+<details>
+<summary>Схема...</summary>
+
+![nginx](img/s/9.png)
+</details>
+
+---
+
+10. На все хосты устанавливаются `node_exporter`, которые генерируются метрики для `prometheus`.
+
+[ansible - node_exporter](https://github.com/badanin/netology-diplom/tree/master/ansible/lxc/roles/node_exporter)
+
+<details>
+<summary>Схема...</summary>
+
+![nginx](img/s/10.png)
+</details>
+
+---
+
+## Общая схема:
+
+![nginx](img/s/all.png)
+
+
+<details>
+<summary>terraform apply</summary>
+
+```text
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # module.db1.proxmox_lxc.lxc_containers will be created
+  + resource "proxmox_lxc" "lxc_containers" {
+      + arch            = "amd64"
+      + cmode           = "tty"
+      + console         = true
+      + cores           = 1
+      + cpulimit        = 0
+      + cpuunits        = 1024
+      + hostname        = "db1.bms-devops.ru"
+      + id              = (known after apply)
+      + memory          = 512
+      + nameserver      = "172.16.0.11"
+      + onboot          = true
+      + ostemplate      = "local-btrfs:vztmpl/debian-11-standard_11.3-1_amd64.tar.zst"
+      + ostype          = (known after apply)
+      + password        = (sensitive value)
+      + protection      = false
+      + searchdomain    = "bms-devops.ru"
+      + ssh_public_keys = (sensitive)
+      + start           = true
+      + swap            = 0
+      + target_node     = "pve"
+      + tty             = 2
+      + unprivileged    = true
+      + unused          = (known after apply)
+      + vmid            = 102
+
+      + features {
+          + fuse    = false
+          + keyctl  = false
+          + mknod   = false
+          + nesting = true
+        }
+
+      + network {
+          + bridge = "vmbr0"
+          + gw     = "172.16.0.11"
+          + hwaddr = (known after apply)
+          + ip     = "172.16.0.102/24"
+          + name   = "eth0"
+          + tag    = (known after apply)
+          + trunks = (known after apply)
+          + type   = (known after apply)
+        }
+
+      + rootfs {
+          + size    = "2G"
+          + storage = "local-btrfs"
+          + volume  = (known after apply)
+        }
+    }
+
+  # module.db2.proxmox_lxc.lxc_containers will be created
+  + resource "proxmox_lxc" "lxc_containers" {
+      + arch            = "amd64"
+      + cmode           = "tty"
+      + console         = true
+      + cores           = 1
+      + cpulimit        = 0
+      + cpuunits        = 1024
+      + hostname        = "db2.bms-devops.ru"
+      + id              = (known after apply)
+      + memory          = 512
+      + nameserver      = "172.16.0.11"
+      + onboot          = true
+      + ostemplate      = "local-btrfs:vztmpl/debian-11-standard_11.3-1_amd64.tar.zst"
+      + ostype          = (known after apply)
+      + password        = (sensitive value)
+      + protection      = false
+      + searchdomain    = "bms-devops.ru"
+      + ssh_public_keys = (sensitive)
+      + start           = true
+      + swap            = 0
+      + target_node     = "pve"
+      + tty             = 2
+      + unprivileged    = true
+      + unused          = (known after apply)
+      + vmid            = 103
+
+      + features {
+          + fuse    = false
+          + keyctl  = false
+          + mknod   = false
+          + nesting = true
+        }
+
+      + network {
+          + bridge = "vmbr0"
+          + gw     = "172.16.0.11"
+          + hwaddr = (known after apply)
+          + ip     = "172.16.0.103/24"
+          + name   = "eth0"
+          + tag    = (known after apply)
+          + trunks = (known after apply)
+          + type   = (known after apply)
+        }
+
+      + rootfs {
+          + size    = "2G"
+          + storage = "local-btrfs"
+          + volume  = (known after apply)
+        }
+    }
+
+  # module.gitlab.proxmox_lxc.lxc_containers will be created
+  + resource "proxmox_lxc" "lxc_containers" {
+      + arch            = "amd64"
+      + cmode           = "tty"
+      + console         = true
+      + cores           = 4
+      + cpulimit        = 0
+      + cpuunits        = 1024
+      + hostname        = "gitlab.bms-devops.ru"
+      + id              = (known after apply)
+      + memory          = 5120
+      + nameserver      = "172.16.0.11"
+      + onboot          = true
+      + ostemplate      = "local-btrfs:vztmpl/debian-11-standard_11.3-1_amd64.tar.zst"
+      + ostype          = (known after apply)
+      + password        = (sensitive value)
+      + protection      = false
+      + searchdomain    = "bms-devops.ru"
+      + ssh_public_keys = (sensitive)
+      + start           = true
+      + swap            = 0
+      + target_node     = "pve"
+      + tty             = 2
+      + unprivileged    = true
+      + unused          = (known after apply)
+      + vmid            = 104
+
+      + features {
+          + fuse    = false
+          + keyctl  = false
+          + mknod   = false
+          + nesting = true
+        }
+
+      + network {
+          + bridge = "vmbr0"
+          + gw     = "172.16.0.11"
+          + hwaddr = (known after apply)
+          + ip     = "172.16.0.104/24"
+          + name   = "eth0"
+          + tag    = (known after apply)
+          + trunks = (known after apply)
+          + type   = (known after apply)
+        }
+
+      + rootfs {
+          + size    = "8G"
+          + storage = "local-btrfs"
+          + volume  = (known after apply)
+        }
+    }
+
+  # module.mon.proxmox_lxc.lxc_containers will be created
+  + resource "proxmox_lxc" "lxc_containers" {
+      + arch            = "amd64"
+      + cmode           = "tty"
+      + console         = true
+      + cores           = 1
+      + cpulimit        = 0
+      + cpuunits        = 1024
+      + hostname        = "mon.bms-devops.ru"
+      + id              = (known after apply)
+      + memory          = 512
+      + nameserver      = "172.16.0.11"
+      + onboot          = true
+      + ostemplate      = "local-btrfs:vztmpl/debian-11-standard_11.3-1_amd64.tar.zst"
+      + ostype          = (known after apply)
+      + password        = (sensitive value)
+      + protection      = false
+      + searchdomain    = "bms-devops.ru"
+      + ssh_public_keys = (sensitive)
+      + start           = true
+      + swap            = 0
+      + target_node     = "pve"
+      + tty             = 2
+      + unprivileged    = true
+      + unused          = (known after apply)
+      + vmid            = 105
+
+      + features {
+          + fuse    = false
+          + keyctl  = false
+          + mknod   = false
+          + nesting = true
+        }
+
+      + network {
+          + bridge = "vmbr0"
+          + gw     = "172.16.0.11"
+          + hwaddr = (known after apply)
+          + ip     = "172.16.0.105/24"
+          + name   = "eth0"
+          + tag    = (known after apply)
+          + trunks = (known after apply)
+          + type   = (known after apply)
+        }
+
+      + rootfs {
+          + size    = "2G"
+          + storage = "local-btrfs"
+          + volume  = (known after apply)
+        }
+    }
+
+  # module.nginx.proxmox_lxc.lxc_containers will be created
+  + resource "proxmox_lxc" "lxc_containers" {
+      + arch            = "amd64"
+      + cmode           = "tty"
+      + console         = true
+      + cores           = 1
+      + cpulimit        = 0
+      + cpuunits        = 1024
+      + hostname        = "nginx.bms-devops.ru"
+      + id              = (known after apply)
+      + memory          = 512
+      + nameserver      = "172.16.0.11"
+      + onboot          = true
+      + ostemplate      = "local-btrfs:vztmpl/debian-11-standard_11.3-1_amd64.tar.zst"
+      + ostype          = (known after apply)
+      + password        = (sensitive value)
+      + protection      = false
+      + searchdomain    = "bms-devops.ru"
+      + ssh_public_keys = (sensitive)
+      + start           = true
+      + swap            = 0
+      + target_node     = "pve"
+      + tty             = 2
+      + unprivileged    = true
+      + unused          = (known after apply)
+      + vmid            = 100
+
+      + features {
+          + fuse    = false
+          + keyctl  = false
+          + mknod   = false
+          + nesting = true
+        }
+
+      + network {
+          + bridge = "vmbr0"
+          + gw     = "172.16.0.11"
+          + hwaddr = (known after apply)
+          + ip     = "172.16.0.100/24"
+          + name   = "eth0"
+          + tag    = (known after apply)
+          + trunks = (known after apply)
+          + type   = (known after apply)
+        }
+
+      + rootfs {
+          + size    = "2G"
+          + storage = "local-btrfs"
+          + volume  = (known after apply)
+        }
+    }
+
+  # module.www.proxmox_lxc.lxc_containers will be created
+  + resource "proxmox_lxc" "lxc_containers" {
+      + arch            = "amd64"
+      + cmode           = "tty"
+      + console         = true
+      + cores           = 1
+      + cpulimit        = 0
+      + cpuunits        = 1024
+      + hostname        = "www.bms-devops.ru"
+      + id              = (known after apply)
+      + memory          = 512
+      + nameserver      = "172.16.0.11"
+      + onboot          = true
+      + ostemplate      = "local-btrfs:vztmpl/debian-11-standard_11.3-1_amd64.tar.zst"
+      + ostype          = (known after apply)
+      + password        = (sensitive value)
+      + protection      = false
+      + searchdomain    = "bms-devops.ru"
+      + ssh_public_keys = (sensitive)
+      + start           = true
+      + swap            = 0
+      + target_node     = "pve"
+      + tty             = 2
+      + unprivileged    = true
+      + unused          = (known after apply)
+      + vmid            = 101
+
+      + features {
+          + fuse    = false
+          + keyctl  = false
+          + mknod   = false
+          + nesting = true
+        }
+
+      + network {
+          + bridge = "vmbr0"
+          + gw     = "172.16.0.11"
+          + hwaddr = (known after apply)
+          + ip     = "172.16.0.101/24"
+          + name   = "eth0"
+          + tag    = (known after apply)
+          + trunks = (known after apply)
+          + type   = (known after apply)
+        }
+
+      + rootfs {
+          + size    = "2G"
+          + storage = "local-btrfs"
+          + volume  = (known after apply)
+        }
+    }
+
+Plan: 6 to add, 0 to change, 0 to destroy.
+
+Do you want to perform these actions in workspace "stage"?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value: yes
+
+module.db2.proxmox_lxc.lxc_containers: Creating...
+module.gitlab.proxmox_lxc.lxc_containers: Creating...
+module.mon.proxmox_lxc.lxc_containers: Creating...
+module.www.proxmox_lxc.lxc_containers: Creating...
+module.db1.proxmox_lxc.lxc_containers: Creating...
+module.nginx.proxmox_lxc.lxc_containers: Creating...
+module.mon.proxmox_lxc.lxc_containers: Still creating... [10s elapsed]
+module.gitlab.proxmox_lxc.lxc_containers: Still creating... [10s elapsed]
+module.db2.proxmox_lxc.lxc_containers: Still creating... [10s elapsed]
+module.nginx.proxmox_lxc.lxc_containers: Still creating... [10s elapsed]
+module.www.proxmox_lxc.lxc_containers: Still creating... [10s elapsed]
+module.db1.proxmox_lxc.lxc_containers: Still creating... [10s elapsed]
+module.mon.proxmox_lxc.lxc_containers: Still creating... [20s elapsed]
+module.db2.proxmox_lxc.lxc_containers: Still creating... [20s elapsed]
+module.gitlab.proxmox_lxc.lxc_containers: Still creating... [20s elapsed]
+module.www.proxmox_lxc.lxc_containers: Still creating... [20s elapsed]
+module.nginx.proxmox_lxc.lxc_containers: Still creating... [20s elapsed]
+module.db1.proxmox_lxc.lxc_containers: Still creating... [20s elapsed]
+module.www.proxmox_lxc.lxc_containers: Creation complete after 23s [id=pve/lxc/101]
+module.gitlab.proxmox_lxc.lxc_containers: Creation complete after 23s [id=pve/lxc/104]
+module.db1.proxmox_lxc.lxc_containers: Creation complete after 23s [id=pve/lxc/102]
+module.db2.proxmox_lxc.lxc_containers: Creation complete after 23s [id=pve/lxc/103]
+module.mon.proxmox_lxc.lxc_containers: Still creating... [30s elapsed]
+module.nginx.proxmox_lxc.lxc_containers: Still creating... [30s elapsed]
+module.nginx.proxmox_lxc.lxc_containers: Creation complete after 35s [id=pve/lxc/100]
+module.mon.proxmox_lxc.lxc_containers: Creation complete after 35s [id=pve/lxc/105]
+
+Apply complete! Resources: 6 added, 0 changed, 0 destroyed.
+```
+</details>
+
+
+
+<details>
+<summary>ansible-playbook -i inventory site.yml</summary>
+
+```text
+PLAY [configure ssh and hosts file] ******************************************************************************************
+
+TASK [Gathering Facts] *******************************************************************************************************
+ok: [nginx]
+ok: [gitlab]
+ok: [db2]
+ok: [www]
+ok: [db1]
+ok: [mon]
+
+TASK [update hosts files] ****************************************************************************************************
+changed: [nginx] => (item=nginx)
+changed: [db2] => (item=nginx)
+changed: [www] => (item=nginx)
+changed: [db1] => (item=nginx)
+changed: [gitlab] => (item=nginx)
+changed: [nginx] => (item=www)
+changed: [db2] => (item=www)
+changed: [gitlab] => (item=www)
+changed: [www] => (item=www)
+changed: [nginx] => (item=db1)
+changed: [db1] => (item=www)
+changed: [nginx] => (item=db2)
+changed: [www] => (item=db1)
+changed: [db2] => (item=db1)
+changed: [gitlab] => (item=db1)
+changed: [db1] => (item=db1)
+changed: [nginx] => (item=gitlab)
+changed: [db2] => (item=db2)
+changed: [www] => (item=db2)
+changed: [gitlab] => (item=db2)
+changed: [db1] => (item=db2)
+changed: [nginx] => (item=mon)
+changed: [gitlab] => (item=gitlab)
+changed: [db2] => (item=gitlab)
+changed: [db1] => (item=gitlab)
+changed: [www] => (item=gitlab)
+changed: [mon] => (item=nginx)
+changed: [gitlab] => (item=mon)
+changed: [db2] => (item=mon)
+changed: [www] => (item=mon)
+changed: [db1] => (item=mon)
+changed: [mon] => (item=www)
+changed: [mon] => (item=db1)
+changed: [mon] => (item=db2)
+changed: [mon] => (item=gitlab)
+changed: [mon] => (item=mon)
+
+TASK [config ssh] ************************************************************************************************************
+changed: [nginx]
+changed: [db2]
+changed: [gitlab]
+changed: [db1]
+changed: [www]
+changed: [mon]
+
+TASK [generate ssh keypair] **************************************************************************************************
+changed: [www]
+changed: [nginx]
+changed: [db2]
+changed: [gitlab]
+changed: [db1]
+changed: [mon]
+
+TASK [exchange ssh public key] ***********************************************************************************************
+changed: [nginx] => (item=nginx)
+changed: [gitlab] => (item=nginx)
+changed: [db1] => (item=nginx)
+changed: [www] => (item=nginx)
+changed: [db2] => (item=nginx)
+changed: [nginx] => (item=www)
+changed: [nginx] => (item=db1)
+changed: [db2] => (item=www)
+changed: [www] => (item=www)
+changed: [gitlab] => (item=www)
+changed: [db1] => (item=www)
+changed: [nginx] => (item=db2)
+changed: [db1] => (item=db1)
+changed: [db2] => (item=db1)
+changed: [www] => (item=db1)
+changed: [gitlab] => (item=db1)
+changed: [nginx] => (item=gitlab)
+changed: [www] => (item=db2)
+changed: [nginx] => (item=mon)
+changed: [gitlab] => (item=db2)
+changed: [db2] => (item=db2)
+changed: [db1] => (item=db2)
+changed: [www] => (item=gitlab)
+changed: [db1] => (item=gitlab)
+changed: [gitlab] => (item=gitlab)
+changed: [db2] => (item=gitlab)
+changed: [mon] => (item=nginx)
+changed: [db1] => (item=mon)
+changed: [gitlab] => (item=mon)
+changed: [www] => (item=mon)
+changed: [db2] => (item=mon)
+changed: [mon] => (item=www)
+changed: [mon] => (item=db1)
+changed: [mon] => (item=db2)
+changed: [mon] => (item=gitlab)
+changed: [mon] => (item=mon)
+
+TASK [create dict for hostname] **********************************************************************************************
+ok: [nginx] => (item=nginx)
+ok: [nginx] => (item=www)
+ok: [nginx] => (item=db1)
+ok: [nginx] => (item=db2)
+ok: [nginx] => (item=gitlab)
+ok: [nginx] => (item=mon)
+ok: [www] => (item=nginx)
+ok: [www] => (item=www)
+ok: [www] => (item=db1)
+ok: [www] => (item=db2)
+ok: [www] => (item=gitlab)
+ok: [www] => (item=mon)
+ok: [db1] => (item=nginx)
+ok: [db1] => (item=www)
+ok: [db1] => (item=db1)
+ok: [db1] => (item=db2)
+ok: [db1] => (item=gitlab)
+ok: [db1] => (item=mon)
+ok: [db2] => (item=nginx)
+ok: [db2] => (item=www)
+ok: [db2] => (item=db1)
+ok: [db2] => (item=db2)
+ok: [db2] => (item=gitlab)
+ok: [db2] => (item=mon)
+ok: [gitlab] => (item=nginx)
+ok: [gitlab] => (item=www)
+ok: [gitlab] => (item=db1)
+ok: [gitlab] => (item=db2)
+ok: [gitlab] => (item=gitlab)
+ok: [gitlab] => (item=mon)
+ok: [mon] => (item=nginx)
+ok: [mon] => (item=www)
+ok: [mon] => (item=db1)
+ok: [mon] => (item=db2)
+ok: [mon] => (item=gitlab)
+ok: [mon] => (item=mon)
+
+PLAY [install nginx] *********************************************************************************************************
+
+TASK [nginx : install nginx] *************************************************************************************************
+changed: [nginx]
+
+TASK [nginx : create certbot config] *****************************************************************************************
+changed: [nginx]
+
+TASK [nginx : get certbot certificates] **************************************************************************************
+changed: [nginx]
+
+TASK [nginx : create nginx configs] ******************************************************************************************
+changed: [nginx] => (item={'key': 'www', 'value': {'server': 'www', 'port': '80'}})
+changed: [nginx] => (item={'key': 'gitlab', 'value': {'server': 'gitlab', 'port': '80'}})
+changed: [nginx] => (item={'key': 'grafana', 'value': {'server': 'mon', 'port': '3000'}})
+changed: [nginx] => (item={'key': 'prometheus', 'value': {'server': 'mon', 'port': '9090'}})
+changed: [nginx] => (item={'key': 'alertmanager', 'value': {'server': 'mon', 'port': '9093'}})
+
+TASK [nginx : enable nginx site] *********************************************************************************************
+changed: [nginx] => (item={'key': 'www', 'value': {'server': 'www', 'port': '80'}})
+changed: [nginx] => (item={'key': 'gitlab', 'value': {'server': 'gitlab', 'port': '80'}})
+changed: [nginx] => (item={'key': 'grafana', 'value': {'server': 'mon', 'port': '3000'}})
+changed: [nginx] => (item={'key': 'prometheus', 'value': {'server': 'mon', 'port': '9090'}})
+changed: [nginx] => (item={'key': 'alertmanager', 'value': {'server': 'mon', 'port': '9093'}})
+
+RUNNING HANDLER [nginx : restart nginx] **************************************************************************************
+changed: [nginx]
+
+PLAY [install db] ************************************************************************************************************
+
+TASK [db : install mariadb] **************************************************************************************************
+changed: [db2]
+changed: [db1]
+
+TASK [db : configure mariadb] ************************************************************************************************
+changed: [db2]
+changed: [db1]
+
+RUNNING HANDLER [db : restart mariadb] ***************************************************************************************
+changed: [db1]
+changed: [db2]
+
+TASK [db : create replication user] ******************************************************************************************
+skipping: [db2]
+changed: [db1]
+
+TASK [db : check replica] ****************************************************************************************************
+skipping: [db1]
+ok: [db2]
+
+TASK [db : change primary] ***************************************************************************************************
+skipping: [db1]
+changed: [db2]
+
+TASK [db : create database] **************************************************************************************************
+skipping: [db2]
+changed: [db1]
+
+TASK [db : create user] ******************************************************************************************************
+skipping: [db2] => (item=172.16.0.%) 
+skipping: [db2] => (item=www.bms-devops.ru) 
+skipping: [db2] => (item=localhost) 
+changed: [db1] => (item=172.16.0.%)
+changed: [db1] => (item=www.bms-devops.ru)
+changed: [db1] => (item=localhost)
+
+RUNNING HANDLER [db : restart mariadb] ***************************************************************************************
+changed: [db2]
+
+PLAY [install www] ***********************************************************************************************************
+
+TASK [www : install php] *****************************************************************************************************
+changed: [www]
+
+TASK [www : get wordpress] ***************************************************************************************************
+changed: [www]
+
+TASK [www : create wordpress directory] **************************************************************************************
+changed: [www]
+
+TASK [www : extract wordpress] ***********************************************************************************************
+changed: [www]
+
+TASK [www : create wordpress config] *****************************************************************************************
+changed: [www]
+
+TASK [www : create apache config] ********************************************************************************************
+changed: [www]
+
+TASK [www : disable default site] ********************************************************************************************
+changed: [www]
+
+TASK [www : enable wordpress site] *******************************************************************************************
+changed: [www]
+
+RUNNING HANDLER [www : restart apache2] **************************************************************************************
+changed: [www]
+
+PLAY [install gitlab] ********************************************************************************************************
+
+TASK [gitlab : install packages] *********************************************************************************************
+changed: [gitlab]
+
+TASK [gitlab : add gitlab repo key] ******************************************************************************************
+changed: [gitlab]
+
+TASK [gitlab : copy gitlab repo list] ****************************************************************************************
+changed: [gitlab]
+
+TASK [gitlab : install gitlab] ***********************************************************************************************
+changed: [gitlab]
+
+TASK [gitlab : ensure a locale exists] ***************************************************************************************
+changed: [gitlab] => (item=en_US.UTF-8)
+changed: [gitlab] => (item=ru_RU.UTF-8)
+
+TASK [gitlab : change locale] ************************************************************************************************
+changed: [gitlab]
+
+TASK [gitlab : copy gitlab config] *******************************************************************************************
+changed: [gitlab]
+
+TASK [gitlab : get service facts] ********************************************************************************************
+ok: [gitlab]
+
+TASK [gitlab : reconfigure gitlab] *******************************************************************************************
+changed: [gitlab]
+
+TASK [gitlab-runner : install packages] **************************************************************************************
+ok: [gitlab]
+
+TASK [gitlab-runner : add gitlab-runner repo key] ****************************************************************************
+changed: [gitlab]
+
+TASK [gitlab-runner : copy gitlab-runner repo list] **************************************************************************
+changed: [gitlab]
+
+TASK [gitlab-runner : install gitlab-runner] *********************************************************************************
+changed: [gitlab]
+
+TASK [gitlab-runner : check gitlab-runner exist] *****************************************************************************
+ok: [gitlab]
+
+TASK [gitlab-runner : configure gitlab-runner] *******************************************************************************
+changed: [gitlab]
+
+PLAY [install monitoring] ****************************************************************************************************
+
+TASK [monitoring : install packages] *****************************************************************************************
+changed: [mon]
+
+TASK [monitoring : add docker repo key] **************************************************************************************
+changed: [mon]
+
+TASK [monitoring : copy docker repo list] ************************************************************************************
+changed: [mon]
+
+TASK [monitoring : install docker] *******************************************************************************************
+changed: [mon]
+
+TASK [monitoring : create data directory] ************************************************************************************
+changed: [mon]
+
+TASK [monitoring : create prometheus directory] ******************************************************************************
+changed: [mon] => (item=/data/prometheus/data)
+changed: [mon] => (item=/data/prometheus/config)
+
+TASK [monitoring : create grafana directory] *********************************************************************************
+changed: [mon]
+
+TASK [monitoring : create prometheus config] *********************************************************************************
+changed: [mon]
+
+TASK [monitoring : create prometheus alert] **********************************************************************************
+changed: [mon]
+
+TASK [monitoring : start prometheus container] *******************************************************************************
+changed: [mon]
+
+TASK [monitoring : start grafana container] **********************************************************************************
+changed: [mon]
+
+TASK [monitoring : start alertmanager container] *****************************************************************************
+changed: [mon]
+
+PLAY [install node_exporter] *************************************************************************************************
+
+TASK [node_exporter : get node_exporter] *************************************************************************************
+changed: [nginx]
+changed: [db1]
+changed: [mon]
+changed: [www]
+changed: [db2]
+
+TASK [node_exporter : extract node_exporter] *********************************************************************************
+changed: [nginx]
+changed: [www]
+changed: [db2]
+changed: [db1]
+changed: [mon]
+
+TASK [node_exporter : create node_exporter service] **************************************************************************
+changed: [nginx]
+changed: [mon]
+changed: [db1]
+changed: [db2]
+changed: [www]
+
+TASK [node_exporter : enable node_exporter service] **************************************************************************
+changed: [nginx]
+changed: [mon]
+changed: [db1]
+changed: [db2]
+changed: [www]
+
+TASK [node_exporter : start node_exporter service] ***************************************************************************
+changed: [nginx]
+changed: [www]
+changed: [db2]
+changed: [db1]
+changed: [mon]
+
+PLAY RECAP *******************************************************************************************************************
+db1                        : ok=17   changed=15   unreachable=0    failed=0    skipped=2    rescued=0    ignored=0   
+db2                        : ok=17   changed=14   unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+gitlab                     : ok=21   changed=16   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+mon                        : ok=23   changed=21   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+nginx                      : ok=17   changed=15   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+www                        : ok=20   changed=18   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+```
+
+</details>
+
+
+
+
+
+
+
+
+
+
 
 ## 1. Регистрация доменного имени
 
@@ -447,27 +1325,46 @@ publish:
 
 **Цель:**
 
-- [ ] 1. *Получение метрик со всей инфраструктуры.*
+- [x] 1. *Получение метрик со всей инфраструктуры.*
 
 *Примечание: дашборды со звёздочкой являются опциональными заданиями повышенной сложности их выполнение желательно, но не обязательно.*
 
 **Ожидаемые результаты:**
 
-- [ ] 1. *Интерфейсы Prometheus, Alert Manager и Grafana доступены по https.*
-- [ ] 2. *В вашей доменной зоне настроены A-записи на внешний адрес reverse proxy:*
+- [x] 1. *Интерфейсы Prometheus, Alert Manager и Grafana доступены по https.*
+- [x] 2. *В вашей доменной зоне настроены A-записи на внешний адрес reverse proxy:*
     - *https://grafana.you.domain (Grafana)*
     - *https://prometheus.you.domain (Prometheus)*
     - *https://alertmanager.you.domain (Alert Manager)*
-- [ ] 3. *На сервере you.domain отредактированы upstreams для выше указанных URL и они смотрят на виртуальную машину на которой установлены Prometheus, Alert Manager и Grafana.*
-- [ ] 4. *На всех серверах установлен Node Exporter и его метрики доступны Prometheu*s.
-- [ ] 5. *У Alert Manager есть необходимый набор правил для создания алертов.*
-- [ ] 6. *В Grafana есть дашборд отображающий метрики из Node Exporter по всем серверам.*
+- [x] 3. *На сервере you.domain отредактированы upstreams для выше указанных URL и они смотрят на виртуальную машину на которой установлены Prometheus, Alert Manager и Grafana.*
+- [x] 4. *На всех серверах установлен Node Exporter и его метрики доступны Prometheu*s.
+- [x] 5. *У Alert Manager есть необходимый набор правил для создания алертов.*
+- [x] 6. *В Grafana есть дашборд отображающий метрики из Node Exporter по всем серверам.*
 - [ ] 7. *В Grafana есть дашборд отображающий метрики из MySQL (*).*
 - [ ] 8. *В Grafana есть дашборд отображающий метрики из WordPress (*).*
 ---
 </details>
 
 ## Решение:
+
+1. Страницы мониторинга доступны по адресам:
+  - [https://grafana.bms-devops.ru](https://grafana.bms-devops.ru)
+  - [https://prometheus.bms-devops.ru](https://prometheus.bms-devops.ru)
+  - [https://alertmanager.bms-devops.ru](https://alertmanager.bms-devops.ru)
+
+2. На сервере `mon` развернуты docker-контейнеры, для каждой из служб.
+3. На всех серверах установлен `node_exporter`.
+4. В `prometheus` видны все сервера, и их состояние.
+
+![Консоль prometheus](img/prometheus.png)
+
+5. Сообщения об алертах поступают на `alertmanager`.
+
+![Консоль alertmanager](img/alertmanager.png)
+
+6. На дашборде `grafana` оборажаются метрики всех серверов.
+
+![Консоль grafana](img/grafana.png)
 
 ---
 
@@ -485,14 +1382,14 @@ publish:
 <details>
 <summary>Детали...</summary>
 
-- [ ] 1. *Репозиторий со всеми Terraform манифестами и готовность продемонстрировать создание всех ресурсов с нуля.*
-- [ ] 2. *Репозиторий со всеми Ansible ролями и готовность продемонстрировать установку всех сервисов с нуля.*
-- [ ] 3. *Скриншоты веб-интерфейсов всех сервисов работающих по HTTPS на вашем доменном имени.*
+- [x] 1. *Репозиторий со всеми Terraform манифестами и готовность продемонстрировать создание всех ресурсов с нуля.*
+- [x] 2. *Репозиторий со всеми Ansible ролями и готовность продемонстрировать установку всех сервисов с нуля.*
+- [x] 3. *Скриншоты веб-интерфейсов всех сервисов работающих по HTTPS на вашем доменном имени.*
     - *https://www.you.domain (WordPress)*
     - *https://gitlab.you.domain (Gitlab)*
     - *https://grafana.you.domain (Grafana)*
     - *https://prometheus.you.domain (Prometheus)*
     - *https://alertmanager.you.domain (Alert Manager)*
-- [ ] 5. *Все репозитории рекомендуется хранить на одном из ресурсов (github.com или gitlab.com).*
+- [x] 5. *Все репозитории рекомендуется хранить на одном из ресурсов (github.com или gitlab.com).*
 
 </details>
